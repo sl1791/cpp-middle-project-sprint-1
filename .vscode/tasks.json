@@ -6,8 +6,7 @@
             "type": "shell",
             "command": [
                 "mkdir ${workspaceFolder}/build ; ",
-                "cd ${workspaceFolder}/build &&",
-                "conan build -b missing -s build_type=Debug .."
+                "cd ${workspaceFolder}/build ; "
             ],
             "presentation": {
                 "clear": true
@@ -22,8 +21,7 @@
             "type": "shell",
             "command": [
                 "mkdir ${workspaceFolder}/build ; ",
-                "cd ${workspaceFolder}/build &&",
-                "conan build -b missing -s build_type=Release .."
+                "cd ${workspaceFolder}/build ; "
             ],
             "presentation": {
                 "clear": true
