@@ -84,6 +84,8 @@ int main(int argc, char *argv[]) {
 
         CryptoGuard::CryptoGuardCtx cryptoCtx;
 
+        options.Parse(argc, argv);
+
         using COMMAND_TYPE = CryptoGuard::ProgramOptions::COMMAND_TYPE;
         switch (options.GetCommand()) {
         case COMMAND_TYPE::ENCRYPT:
