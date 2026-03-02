@@ -21,8 +21,8 @@ public:
     std::string CalculateChecksum(std::iostream &inStream);
 
 private:
-    class Impl;
-    Impl *pImpl_;
+    class PImpl;
+    PImpl *pImpl_;
 };
 
 }  // namespace CryptoGuard
