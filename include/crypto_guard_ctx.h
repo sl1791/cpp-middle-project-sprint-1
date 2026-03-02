@@ -2,6 +2,7 @@
 
 #include <string>
 #include <memory>
+#include <experimental/propagate_const>
 
 namespace CryptoGuard {
 
@@ -23,7 +24,7 @@ public:
 
 private:
     class PImpl;
-    std::unique_ptr<PImpl> pImpl_;
+    std::experimental::propagate_const<std::unique_ptr<PImpl>> pImpl_;
 };
 
 }  // namespace CryptoGuard
