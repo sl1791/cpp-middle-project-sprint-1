@@ -2,6 +2,7 @@
 
 #include <array>
 #include <vector>
+#include <iostream>
 #include <openssl/evp.h>
 
 namespace CryptoGuard {
@@ -64,7 +65,15 @@ public:
     PImpl(PImpl &&) = delete;
     PImpl &operator=(PImpl &&) = delete;
 
-    void EncryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) {}
+    void EncryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) {
+        // 1. Проверка состояния потоков
+        if (!inStream.good()) {
+            throw std::runtime_error("Input stream is in bad state");
+        }
+        if (!outStream.good()) {
+            throw std::runtime_error("Output stream is in bad state");
+        }
+    }
 
     void DecryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) {}
 
@@ -92,7 +101,7 @@ private:
     std::string output_;
 };
 
-CryptoGuardCtx::CryptoGuardCtx() : pImpl_(nullptr) {}
+CryptoGuardCtx::CryptoGuardCtx() : pImpl_(std::make_unique<PImpl>()) {}
 CryptoGuardCtx::~CryptoGuardCtx() = default;
 CryptoGuardCtx::CryptoGuardCtx(CryptoGuardCtx &&) noexcept = default;
 CryptoGuardCtx &CryptoGuardCtx::operator=(CryptoGuardCtx &&) noexcept = default;
