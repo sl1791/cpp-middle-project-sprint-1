@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include <openssl/evp.h>
+#include <print>
 
 namespace CryptoGuard {
 
@@ -18,6 +19,7 @@ struct AesCipherParams {
 };
 
 class CryptoGuardCtx::PImpl {
+    using Unique_ptr_EVP_CIPHER_CTX = std::unique_ptr<EVP_CIPHER_CTX, decltype([](EVP_CIPHER_CTX* ptr) { EVP_CIPHER_CTX_free(ptr); })>;
 public:
     PImpl() {
         std::string input = "01234567890123456789";
@@ -26,36 +28,35 @@ public:
 
         auto params = CreateChiperParamsFromPassword("12341234");
         params.encrypt = 1;
-        ctx_ = EVP_CIPHER_CTX_new();
+        ctx_ = Unique_ptr_EVP_CIPHER_CTX(EVP_CIPHER_CTX_new());
 
         outBuf_.resize(16 + EVP_MAX_BLOCK_LENGTH);
 
         // Инициализируем cipher
-        EVP_CipherInit_ex(ctx_, params.cipher, nullptr, params.key.data(), params.iv.data(), params.encrypt);
+        EVP_CipherInit_ex(ctx_.get(), params.cipher, nullptr, params.key.data(), params.iv.data(), params.encrypt);
 
         std::vector<unsigned char> inBuf(16);
 
         // Обрабатываем первые N символов
         std::copy(input.begin(), std::next(input.begin(), 16), inBuf.begin());
-        EVP_CipherUpdate(ctx_, outBuf_.data(), &outLen_, inBuf.data(), static_cast<int>(16));
+        EVP_CipherUpdate(ctx_.get(), outBuf_.data(), &outLen_, inBuf.data(), static_cast<int>(16));
         for (int i = 0; i < outLen_; ++i) {
             output_.push_back(outBuf_[i]);
         }
 
         // Обрабатываем оставшиеся символы
         std::copy(std::next(input.begin(), 16), input.end(), inBuf.begin());
-        EVP_CipherUpdate(ctx_, outBuf_.data(), &outLen_, inBuf.data(), static_cast<int>(input.size() - 16));
+        EVP_CipherUpdate(ctx_.get(), outBuf_.data(), &outLen_, inBuf.data(), static_cast<int>(input.size() - 16));
         for (int i = 0; i < outLen_; ++i) {
             output_.push_back(outBuf_[i]);
         }
     }
     ~PImpl() {
         // Заканчиваем работу с cipher
-        EVP_CipherFinal_ex(ctx_, outBuf_.data(), &outLen_);
+        EVP_CipherFinal_ex(ctx_.get(), outBuf_.data(), &outLen_);
         for (int i = 0; i < outLen_; ++i) {
             output_.push_back(outBuf_[i]);
         }
-        EVP_CIPHER_CTX_free(ctx_);
         std::print("String encoded successfully. Result: '{}'\n\n", output_);
         EVP_cleanup();
     }
@@ -95,7 +96,7 @@ private:
         return params;
     }
 
-    EVP_CIPHER_CTX *ctx_;
+    Unique_ptr_EVP_CIPHER_CTX ctx_;
     std::vector<unsigned char> outBuf_;
     int outLen_;
     std::string output_;
