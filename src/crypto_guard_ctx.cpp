@@ -3,10 +3,20 @@
 #include <array>
 #include <iomanip>
 #include <iostream>
+#include <openssl/err.h>
 #include <openssl/evp.h>
 #include <print>
 #include <sstream>
 #include <vector>
+
+namespace {
+std::string getOpenSSLErrorMessage(std::string_view prefix) {
+    std::array<char, 256> buf{};
+    const unsigned long err = ERR_get_error();
+    ERR_error_string_n(err, buf.data(), sizeof(buf));
+    return std::format("{}: {} (OpenSSL error: {})", prefix, buf, err);
+}
+}  // namespace
 
 namespace CryptoGuard {
 struct AesCipherParams {
@@ -28,8 +38,8 @@ class CryptoGuardCtx::PImpl {
 public:
     PImpl() : ctx_(Unique_ptr_EVP_CIPHER_CTX(EVP_CIPHER_CTX_new())), mdctx_(Unique_ptr_EVP_MD_CTX(EVP_MD_CTX_new())) {
         if (!ctx_ || !mdctx_) {
-            throw std::runtime_error(
-                "CryptoGuardCtx::PImpl::CryptoGuardCtx: не удалось инициализировать контексты Cipher и/или MD");
+            throw std::runtime_error(getOpenSSLErrorMessage(
+                "CryptoGuardCtx::PImpl::PImpl: не удалось инициализировать контексты Cipher и/или MD"));
         }
     }
 
@@ -62,8 +72,8 @@ public:
         }
 
         if (EVP_DigestInit_ex(mdctx_.get(), md.get(), nullptr) != 1) {
-            throw std::runtime_error(
-                "CryptoGuardCtx::PImpl::CalculateChecksum: вызов EVP_DigestInit_ex закончился неудачей");
+            throw std::runtime_error(getOpenSSLErrorMessage(
+                "CryptoGuardCtx::PImpl::CalculateChecksum: вызов EVP_DigestInit_ex закончился неудачей"));
         }
 
         constexpr std::size_t kChunkSize = 64 * 1024;
@@ -74,8 +84,8 @@ public:
 
             if (const auto bytesRead = inStream.gcount(); bytesRead > 0) {
                 if (EVP_DigestUpdate(mdctx_.get(), buffer.data(), static_cast<size_t>(bytesRead)) != 1) {
-                    throw std::runtime_error(
-                        "CryptoGuardCtx::PImpl::CalculateChecksum: вызов EVP_DigestUpdate закончился неудачей");
+                    throw std::runtime_error(getOpenSSLErrorMessage(
+                        "CryptoGuardCtx::PImpl::CalculateChecksum: вызов EVP_DigestUpdate закончился неудачей"));
                 }
             }
 
@@ -93,8 +103,8 @@ public:
         unsigned int md_len = 0;
 
         if (EVP_DigestFinal_ex(mdctx_.get(), md_value.data(), &md_len) != 1) {
-            throw std::runtime_error(
-                "CryptoGuardCtx::PImpl::CalculateChecksum: вызов EVP_DigestFinal_ex закончился неудачей");
+            throw std::runtime_error(getOpenSSLErrorMessage(
+                "CryptoGuardCtx::PImpl::CalculateChecksum: вызов EVP_DigestFinal_ex закончился неудачей"));
         }
 
         std::stringstream ss;
@@ -118,8 +128,8 @@ private:
         encFlag = encrypt ? 1 : 0;
 
         if (EVP_CipherInit_ex(ctx_.get(), cipher, nullptr, key.data(), iv.data(), encFlag) != 1) {
-            throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName +
-                                     ": вызов EVP_CipherInit_ex закончился неудачей");
+            throw std::runtime_error(getOpenSSLErrorMessage("CryptoGuardCtx::PImpl::" + opName +
+                                                            ": вызов EVP_CipherInit_ex закончился неудачей"));
         }
 
         constexpr std::size_t kChunkSize = 64 * 1024;
@@ -133,8 +143,8 @@ private:
                 int outLen = 0;
                 if (EVP_CipherUpdate(ctx_.get(), outBuf.data(), &outLen, inBuf.data(), static_cast<int>(bytesRead)) !=
                     1) {
-                    throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName +
-                                             ": вызов EVP_CipherUpdate закончился неудачей");
+                    throw std::runtime_error(getOpenSSLErrorMessage("CryptoGuardCtx::PImpl::" + opName +
+                                                                    ": вызов EVP_CipherUpdate закончился неудачей"));
                 }
 
                 outStream.write(reinterpret_cast<const char *>(outBuf.data()), outLen);
@@ -157,8 +167,8 @@ private:
 
         int finalLen = 0;
         if (EVP_CipherFinal_ex(ctx_.get(), outBuf.data(), &finalLen) != 1) {
-            throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName +
-                                     ": вызов EVP_CipherFinal_ex закончился неудачей");
+            throw std::runtime_error(getOpenSSLErrorMessage("CryptoGuardCtx::PImpl::" + opName +
+                                                            ": вызов EVP_CipherFinal_ex закончился неудачей"));
         }
 
         outStream.write(reinterpret_cast<const char *>(outBuf.data()), finalLen);
@@ -178,7 +188,7 @@ private:
                                           params.key.data(), params.iv.data());
 
         if (result == 0) {
-            throw std::runtime_error{"Failed to create a key from password"};
+            throw std::runtime_error{getOpenSSLErrorMessage("Failed to create a key from password")};
         }
 
         return params;
