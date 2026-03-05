@@ -1,5 +1,7 @@
 #include "cmd_options.h"
 
+#include <iostream>
+
 namespace CryptoGuard {
 namespace po = boost::program_options;
 ProgramOptions::ProgramOptions() : command_(), desc_("Allowed options") {
@@ -19,7 +21,8 @@ void ProgramOptions::Parse(int argc, char *argv[]) {
 
     // Обработка --help
     if (commandMap.contains("help")) {
-        return;
+        std::cout << desc_ << std::endl;
+        std::exit(0);
     }
 
     // Проверка и обработка --command

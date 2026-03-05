@@ -77,14 +77,6 @@ TEST(ProgramOptions, ParseOptionsInAnyOrder) {
     EXPECT_EQ(options.GetPassword(), "pass123");
 }
 
-// Тест 6: Опция help не вызывает исключений
-TEST(ProgramOptions, HelpOptionDoesNotThrow) {
-    CryptoGuard::ProgramOptions options;
-    std::vector args({"program", "--help"});
-
-    EXPECT_NO_THROW(options.Parse(args.size(), const_cast<char**>(args.data())));
-}
-
 // Тест 7: Парсинг путей с пробелами
 TEST(ProgramOptions, ParsePathsWithSpaces) {
     CryptoGuard::ProgramOptions options;

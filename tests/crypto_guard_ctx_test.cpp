@@ -118,4 +118,30 @@ TEST(CryptoGuardCtxTest, CalculateChecksumThrowsOnBadStream) {
     ASSERT_THROW(ctx.CalculateChecksum(inStream), std::runtime_error);
 }
 
+TEST(CryptoGuardCtxTest, CalculateChecksumBeforeAndAfterEncryptDecrypt) {
+    CryptoGuardCtx ctx;
+    std::string text = "Hello OpenSSL crypto world!";
+    std::stringstream inStream(text);
+
+    // echo -n "Hello OpenSSL crypto world!" | sha256sum
+    // >> abec80fdd708340513c54b7c6522cd3c9318a5decce7305e48fb1b51da6a4899
+    std::string before;
+    ASSERT_NO_THROW(before = ctx.CalculateChecksum(inStream));
+
+    // Теперь сравним с хэшэм после шифрования/дешифрования того же текста
+    std::string password = "very_very_strong_password";
+
+    std::stringstream inStream2(text);
+    std::stringstream cipherStream;
+    ASSERT_NO_THROW(ctx.EncryptFile(inStream2, cipherStream, password));
+
+    std::stringstream outStream;
+    ASSERT_NO_THROW(ctx.DecryptFile(cipherStream, outStream, password));
+
+    std::string after;
+    ASSERT_NO_THROW(after = ctx.CalculateChecksum(outStream));
+
+    EXPECT_EQ(before, after);
+}
+
 } // namespace

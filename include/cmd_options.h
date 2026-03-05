@@ -27,9 +27,9 @@ public:
 private:
     COMMAND_TYPE command_;
     const std::unordered_map<std::string_view, COMMAND_TYPE> commandMapping_ = {
-        {"encrypt", ProgramOptions::COMMAND_TYPE::ENCRYPT},
-        {"decrypt", ProgramOptions::COMMAND_TYPE::DECRYPT},
-        {"checksum", ProgramOptions::COMMAND_TYPE::CHECKSUM},
+        {"encrypt", COMMAND_TYPE::ENCRYPT},
+        {"decrypt", COMMAND_TYPE::DECRYPT},
+        {"checksum", COMMAND_TYPE::CHECKSUM},
     };
 
     std::string inputFile_;
