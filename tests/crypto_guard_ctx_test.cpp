@@ -87,4 +87,35 @@ TEST(CryptoGuardCtxTest, DecryptThrowsOnBadPassword) {
     ASSERT_THROW(ctx.DecryptFile(cipherStream, outStream, wrongPassword), std::runtime_error);
 }
 
+TEST(CryptoGuardCtxTest, CalculateChecksumNormalString) {
+    CryptoGuardCtx ctx;
+    std::string text = "Hello OpenSSL crypto world!";
+    std::stringstream inStream(text);
+
+    // echo -n "Hello OpenSSL crypto world!" | sha256sum
+    std::string expected = "abec80fdd708340513c54b7c6522cd3c9318a5decce7305e48fb1b51da6a4899";
+    std::string actual;
+    ASSERT_NO_THROW(actual = ctx.CalculateChecksum(inStream));
+    EXPECT_EQ(actual, expected);
+}
+
+TEST(CryptoGuardCtxTest, CalculateChecksumEmptyStream) {
+    CryptoGuardCtx ctx;
+    std::stringstream inStream("");
+
+    // echo -n "" | sha256sum
+    std::string expected = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    std::string actual;
+    ASSERT_NO_THROW(actual = ctx.CalculateChecksum(inStream));
+    EXPECT_EQ(actual, expected);
+}
+
+TEST(CryptoGuardCtxTest, CalculateChecksumThrowsOnBadStream) {
+    CryptoGuardCtx ctx;
+    std::stringstream inStream;
+    inStream.setstate(std::ios::failbit);
+
+    ASSERT_THROW(ctx.CalculateChecksum(inStream), std::runtime_error);
+}
+
 } // namespace

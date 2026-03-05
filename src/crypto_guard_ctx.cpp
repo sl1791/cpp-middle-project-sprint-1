@@ -1,9 +1,11 @@
 #include "crypto_guard_ctx.h"
 
 #include <array>
+#include <iomanip>
 #include <iostream>
 #include <openssl/evp.h>
 #include <print>
+#include <sstream>
 #include <vector>
 
 namespace CryptoGuard {
@@ -21,8 +23,15 @@ class CryptoGuardCtx::PImpl {
     using Unique_ptr_EVP_CIPHER_CTX =
         std::unique_ptr<EVP_CIPHER_CTX, decltype([](EVP_CIPHER_CTX *ptr) { EVP_CIPHER_CTX_free(ptr); })>;
 
+    using Unique_ptr_EVP_MD_CTX = std::unique_ptr<EVP_MD_CTX, decltype([](EVP_MD_CTX *ptr) { EVP_MD_CTX_free(ptr); })>;
+
 public:
-    PImpl() : ctx_(Unique_ptr_EVP_CIPHER_CTX(EVP_CIPHER_CTX_new())) {}
+    PImpl() : ctx_(Unique_ptr_EVP_CIPHER_CTX(EVP_CIPHER_CTX_new())), mdctx_(Unique_ptr_EVP_MD_CTX(EVP_MD_CTX_new())) {
+        if (!ctx_ || !mdctx_) {
+            throw std::runtime_error(
+                "CryptoGuardCtx::PImpl::CryptoGuardCtx: не удалось инициализировать контексты Cipher и/или MD");
+        }
+    }
 
     ~PImpl() = default;
 
@@ -42,11 +51,62 @@ public:
         performCrypto(inStream, outStream, password, false);
     }
 
-    std::string CalculateChecksum(std::iostream &inStream) { return "NOT_IMPLEMENTED"; }
+    std::string CalculateChecksum(std::iostream &inStream) {
+        if (!inStream.good()) {
+            throw std::runtime_error("CryptoGuardCtx::PImpl::CalculateChecksum: Входной поток не в валидном состоянии");
+        }
+
+        const auto md = std::unique_ptr<const EVP_MD, decltype([](auto ptr) {})>(EVP_sha256());
+        if (!md) {
+            throw std::runtime_error("CryptoGuardCtx::PImpl::CalculateChecksum: вызов EVP_sha256 закончился неудачей");
+        }
+
+        if (EVP_DigestInit_ex(mdctx_.get(), md.get(), nullptr) != 1) {
+            throw std::runtime_error(
+                "CryptoGuardCtx::PImpl::CalculateChecksum: вызов EVP_DigestInit_ex закончился неудачей");
+        }
+
+        constexpr std::size_t kChunkSize = 64 * 1024;
+        std::vector<unsigned char> buffer(kChunkSize);
+
+        while (true) {
+            inStream.read(reinterpret_cast<char *>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
+
+            if (const auto bytesRead = inStream.gcount(); bytesRead > 0) {
+                if (EVP_DigestUpdate(mdctx_.get(), buffer.data(), static_cast<size_t>(bytesRead)) != 1) {
+                    throw std::runtime_error(
+                        "CryptoGuardCtx::PImpl::CalculateChecksum: вызов EVP_DigestUpdate закончился неудачей");
+                }
+            }
+
+            if (inStream.eof()) {
+                break;
+            }
+
+            if (!inStream.good()) {
+                throw std::runtime_error("CryptoGuardCtx::PImpl::CalculateChecksum: Входной поток оказался не в "
+                                         "валидном состоянии при чтении очередного блока данных");
+            }
+        }
+
+        std::array<unsigned char, EVP_MAX_MD_SIZE> md_value{};
+        unsigned int md_len = 0;
+
+        if (EVP_DigestFinal_ex(mdctx_.get(), md_value.data(), &md_len) != 1) {
+            throw std::runtime_error(
+                "CryptoGuardCtx::PImpl::CalculateChecksum: вызов EVP_DigestFinal_ex закончился неудачей");
+        }
+
+        std::stringstream ss;
+        for (unsigned int i = 0; i < md_len; ++i) {
+            ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(md_value[i]);
+        }
+
+        return ss.str();
+    }
 
 private:
-    void performCrypto(std::iostream &inStream, std::iostream &outStream, std::string_view password,
-                       bool encrypt) {
+    void performCrypto(std::iostream &inStream, std::iostream &outStream, std::string_view password, bool encrypt) {
         const std::string opName = encrypt ? "EncryptFile" : "DecryptFile";
         if (!inStream.good()) {
             throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName + ": Входной поток не в валидном состоянии");
@@ -58,7 +118,8 @@ private:
         encFlag = encrypt ? 1 : 0;
 
         if (EVP_CipherInit_ex(ctx_.get(), cipher, nullptr, key.data(), iv.data(), encFlag) != 1) {
-            throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName + ": вызов EVP_CipherInit_ex закончился неудачей");
+            throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName +
+                                     ": вызов EVP_CipherInit_ex закончился неудачей");
         }
 
         constexpr std::size_t kChunkSize = 64 * 1024;
@@ -124,6 +185,7 @@ private:
     }
 
     const Unique_ptr_EVP_CIPHER_CTX ctx_;
+    const Unique_ptr_EVP_MD_CTX mdctx_;
 };
 
 CryptoGuardCtx::CryptoGuardCtx() : pImpl_(std::make_unique<PImpl>()) {}
