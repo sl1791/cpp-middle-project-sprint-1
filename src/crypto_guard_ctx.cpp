@@ -35,17 +35,30 @@ public:
     PImpl &operator=(PImpl &&) = delete;
 
     void EncryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) {
+        performCrypto(inStream, outStream, password, true);
+    }
+
+    void DecryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) {
+        performCrypto(inStream, outStream, password, false);
+    }
+
+    std::string CalculateChecksum(std::iostream &inStream) { return "NOT_IMPLEMENTED"; }
+
+private:
+    void performCrypto(std::iostream &inStream, std::iostream &outStream, std::string_view password,
+                       bool encrypt) {
+        const std::string opName = encrypt ? "EncryptFile" : "DecryptFile";
         if (!inStream.good()) {
-            throw std::runtime_error("CryptoGuardCtx::PImpl::EncryptFile: Входной поток не в валидном состоянии");
+            throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName + ": Входной поток не в валидном состоянии");
         }
         if (!outStream.good()) {
-            throw std::runtime_error("CryptoGuardCtx::PImpl::EncryptFile: Выходной поток не в валидном состоянии");
+            throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName + ": Выходной поток не в валидном состоянии");
         }
-        auto [cipher, encrypt, key, iv] = createCipherParamsFromPassword(password, true);
-        encrypt = 1;
+        auto [cipher, encFlag, key, iv] = createCipherParamsFromPassword(password);
+        encFlag = encrypt ? 1 : 0;
 
-        if (EVP_CipherInit_ex(ctx_.get(), cipher, nullptr, key.data(), iv.data(), encrypt) != 1) {
-            throw std::runtime_error("CryptoGuardCtx::PImpl::EncryptFile: вызов EVP_CipherInit_ex закончился неудачей");
+        if (EVP_CipherInit_ex(ctx_.get(), cipher, nullptr, key.data(), iv.data(), encFlag) != 1) {
+            throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName + ": вызов EVP_CipherInit_ex закончился неудачей");
         }
 
         constexpr std::size_t kChunkSize = 64 * 1024;
@@ -59,13 +72,14 @@ public:
                 int outLen = 0;
                 if (EVP_CipherUpdate(ctx_.get(), outBuf.data(), &outLen, inBuf.data(), static_cast<int>(bytesRead)) !=
                     1) {
-                    throw std::runtime_error(
-                        "CryptoGuardCtx::PImpl::EncryptFile: вызов EVP_CipherUpdate закончился неудачей");
+                    throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName +
+                                             ": вызов EVP_CipherUpdate закончился неудачей");
                 }
 
                 outStream.write(reinterpret_cast<const char *>(outBuf.data()), outLen);
                 if (!outStream.good()) {
-                    throw std::runtime_error("CryptoGuardCtx::PImpl::EncryptFile: Входной поток оказался не в валидном "
+                    throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName +
+                                             ": Выходной поток оказался не в валидном "
                                              "состоянии при записи блока данных");
                 }
             }
@@ -74,30 +88,27 @@ public:
                 break;
             }
             if (!inStream.good()) {
-                throw std::runtime_error("CryptoGuardCtx::PImpl::EncryptFile: Выходной поток оказался не в валидном "
+                throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName +
+                                         ": Входной поток оказался не в валидном "
                                          "состоянии при очередном чтении блока данных из файла");
             }
         }
 
         int finalLen = 0;
         if (EVP_CipherFinal_ex(ctx_.get(), outBuf.data(), &finalLen) != 1) {
-            throw std::runtime_error(
-                "CryptoGuardCtx::PImpl::EncryptFile: вызов EVP_CipherFinal_ex закончился неудачей");
+            throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName +
+                                     ": вызов EVP_CipherFinal_ex закончился неудачей");
         }
 
         outStream.write(reinterpret_cast<const char *>(outBuf.data()), finalLen);
         if (!outStream.good()) {
-            throw std::runtime_error("CryptoGuardCtx::PImpl::EncryptFile: Входной поток оказался не в валидном "
-                                     "состоянии при записи финального зашифрованного блока данных");
+            throw std::runtime_error("CryptoGuardCtx::PImpl::" + opName +
+                                     ": Выходной поток оказался не в валидном "
+                                     "состоянии при записи финального блока данных");
         }
     }
 
-    void DecryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) {}
-
-    std::string CalculateChecksum(std::iostream &inStream) { return "NOT_IMPLEMENTED"; }
-
-private:
-    static AesCipherParams createCipherParamsFromPassword(std::string_view password, bool encrypt) {
+    static AesCipherParams createCipherParamsFromPassword(std::string_view password) {
         AesCipherParams params;
         constexpr std::array<unsigned char, 8> salt = {'1', '2', '3', '4', '5', '6', '7', '8'};
 

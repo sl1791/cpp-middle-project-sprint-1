@@ -43,4 +43,48 @@ TEST(CryptoGuardCtxTest, EncryptThrowsOnBadStream) {
     ASSERT_THROW(ctx.EncryptFile(inStream, outStream, password), std::runtime_error);
 }
 
+TEST(CryptoGuardCtxTest, DecryptNormalString) {
+    CryptoGuardCtx ctx;
+    std::string plaintext = "Hello OpenSSL crypto world!";
+    std::string password = "very_very_strong_password";
+
+    std::stringstream inStream(plaintext);
+    std::stringstream cipherStream;
+    ASSERT_NO_THROW(ctx.EncryptFile(inStream, cipherStream, password));
+
+    std::stringstream outStream;
+    ASSERT_NO_THROW(ctx.DecryptFile(cipherStream, outStream, password));
+
+    EXPECT_EQ(outStream.str(), plaintext);
+}
+
+TEST(CryptoGuardCtxTest, DecryptEmptyStream) {
+    CryptoGuardCtx ctx;
+    std::string password = "test_password";
+
+    std::stringstream inStream("");
+    std::stringstream cipherStream;
+    ASSERT_NO_THROW(ctx.EncryptFile(inStream, cipherStream, password));
+
+    std::stringstream outStream;
+    ASSERT_NO_THROW(ctx.DecryptFile(cipherStream, outStream, password));
+
+    EXPECT_TRUE(outStream.str().empty());
+}
+
+TEST(CryptoGuardCtxTest, DecryptThrowsOnBadPassword) {
+    CryptoGuardCtx ctx;
+    std::string plaintext = "Hello OpenSSL crypto world!";
+    std::string correctPassword = "correct_password";
+    std::string wrongPassword = "wrong_password";
+
+    std::stringstream inStream(plaintext);
+    std::stringstream cipherStream;
+    ASSERT_NO_THROW(ctx.EncryptFile(inStream, cipherStream, correctPassword));
+
+    std::stringstream outStream;
+    // При дешифровании с неправильным паролем EVP_CipherFinal_ex должен вернуть ошибку
+    ASSERT_THROW(ctx.DecryptFile(cipherStream, outStream, wrongPassword), std::runtime_error);
+}
+
 } // namespace
