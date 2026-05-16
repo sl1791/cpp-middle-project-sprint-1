@@ -4,27 +4,20 @@
         {
             "label": "GCC: Build Debug",
             "type": "shell",
-            "command": [
-                "mkdir ${workspaceFolder}/build ; ",
-                "cd ${workspaceFolder}/build &&",
-                "conan build -b missing -s build_type=Debug .."
-            ],
+            "command": "mkdir -p ${workspaceFolder}/build/debug && cd ${workspaceFolder}/build/debug && conan build -b missing -s build_type=Debug ..",
             "presentation": {
                 "clear": true
             },
             "hide": false,
             "group": {
-                "kind": "build"
+                "kind": "build",
+                "isDefault": true
             }
         },
         {
             "label": "GCC: Build Release",
             "type": "shell",
-            "command": [
-                "mkdir ${workspaceFolder}/build ; ",
-                "cd ${workspaceFolder}/build &&",
-                "conan build -b missing -s build_type=Release .."
-            ],
+            "command": "mkdir -p ${workspaceFolder}/build/release && cd ${workspaceFolder}/build/release && conan build -b missing -s build_type=Release ..",
             "presentation": {
                 "clear": true
             },

@@ -47,8 +47,8 @@ target_include_directories(unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/includ
 target_link_libraries(unit_tests
     PRIVATE
         ${PROJECT_NAME}_imp
-        GTest::GTest
-        GTest::Main)
+        GTest::gtest
+        GTest::gtest_main)
 
 # Включаем тестирование
 enable_testing()

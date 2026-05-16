@@ -5,22 +5,43 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "lldb",
+            "name": "(gdb) Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/CryptoGuard",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "type": "cppdbg",
             "request": "launch",
             "name": "Launch Debug app",
             "program": "${workspaceFolder}/build/CryptoGuard",
             "args": [
-                "-i",
-                "input.txt",
-                "--command",
-                "checksum"
+                "--help"
             ],
             "cwd": "${workspaceFolder}/build",
-            "preLaunchTask": "GCC: Build Debug",
-            "initCommands": ["settings set target.disable-aslr false"]
+            "externalConsole": true,
+            //"preLaunchTask": "GCC: Build Debug",
         },
         {
-            "type": "lldb",
+            "type": "cppdbg",
             "request": "launch",
             "name": "Launch Debug unit_tests",
             "program": "${workspaceFolder}/build/unit_tests",
@@ -28,7 +49,6 @@
             ],
             "cwd": "${workspaceFolder}/build",
             "preLaunchTask": "GCC: Build Debug",
-            "initCommands": ["settings set target.disable-aslr false"]
         }
     ]
 }
