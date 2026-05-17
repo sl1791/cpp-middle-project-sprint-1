@@ -37,8 +37,8 @@
                 "--help"
             ],
             "cwd": "${workspaceFolder}/build",
-            "externalConsole": true,
-            //"preLaunchTask": "GCC: Build Debug",
+            "externalConsole": false,
+            "preLaunchTask": "GCC: Build Debug",
         },
         {
             "type": "cppdbg",
