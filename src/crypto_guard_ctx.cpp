@@ -1,6 +1,8 @@
 #include "crypto_guard_ctx.h"
 #include <openssl/evp.h>
 #include <array>
+#include <vector>
+#include <iostream>
 
 namespace CryptoGuard {
 
@@ -29,15 +31,71 @@ public:
 private:
     ciperUPtr chiper;
 
+    void MakeEncryption(std::iostream &inStream, std::iostream &outStream);
     static AesCipherParams CreateChiperParamsFromPassword(std::string_view password);
 };
 
 CryptoGuardCtx::Impl::Impl() : chiper(EVP_CIPHER_CTX_new())
 { }
 
-void CryptoGuardCtx::Impl::EncryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password)
+void CryptoGuardCtx::Impl::MakeEncryption(std::iostream &inStream, 
+    std::iostream &outStream)
 {
+    const size_t BLOCK_SIZE = 16;
+    std::vector<unsigned char> outBuf(BLOCK_SIZE + EVP_MAX_BLOCK_LENGTH);
+    std::vector<unsigned char> inBuf(BLOCK_SIZE);
+    int outLen = 0;
 
+    while(inStream.read(reinterpret_cast<char*>(inBuf.data()), BLOCK_SIZE))
+    {
+        if (!EVP_CipherUpdate(chiper.get(), outBuf.data(), &outLen, 
+                inBuf.data(), BLOCK_SIZE)) 
+            throw std::runtime_error{"Encryption failed."};
+        outStream.write(reinterpret_cast<char*>(outBuf.data()), outLen);
+    }
+
+    if (inStream.gcount() > 0) 
+    {
+        size_t last_block_size = inStream.gcount();
+        if (!EVP_CipherUpdate(chiper.get(), outBuf.data(), &outLen, 
+                inBuf.data(), static_cast<int>(last_block_size))) 
+            throw std::runtime_error{"Encryption failed."};
+        outStream.write(reinterpret_cast<char*>(outBuf.data()), outLen);
+    }
+
+    // Заканчиваем работу с cipher
+    if (!EVP_CipherFinal_ex(chiper.get(), outBuf.data(), &outLen)) 
+        throw std::runtime_error{"Encryption failed."};
+    
+    outStream.write(reinterpret_cast<char*>(outBuf.data()), outLen);
+
+    if(!outStream)
+        throw std::runtime_error{"Encryption failed."};
+}
+
+void CryptoGuardCtx::Impl::EncryptFile(std::iostream &inStream, 
+    std::iostream &outStream, std::string_view password)
+{
+    auto params = CreateChiperParamsFromPassword(password);
+    params.encrypt = 1;
+
+    // Инициализируем cipher
+    if (!EVP_CipherInit_ex(chiper.get(), params.cipher, nullptr, 
+                params.key.data(), params.iv.data(), params.encrypt)) 
+        throw std::runtime_error{"Encryption failed."};
+
+    try
+    {
+        MakeEncryption(inStream, outStream);
+    }
+    catch(...)
+    {
+        // помню о ScopeGuard.
+        // нет времени сделать красиво.
+        EVP_CIPHER_CTX_reset(chiper.get());
+        throw;
+    }
+    EVP_CIPHER_CTX_reset(chiper.get());
 }
 
 void CryptoGuardCtx::Impl::DecryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password)
@@ -86,7 +144,8 @@ std::string CryptoGuardCtx::CalculateChecksum(std::iostream &inStream)
     return pImpl_->CalculateChecksum(inStream);
 }
 
-CryptoGuardCtx::CryptoGuardCtx() = default;
+CryptoGuardCtx::CryptoGuardCtx() : pImpl_(std::make_unique<Impl>())
+{ }
 CryptoGuardCtx::~CryptoGuardCtx() = default;
 
 }  // namespace CryptoGuard

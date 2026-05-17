@@ -128,6 +128,8 @@ int main(int argc, char *argv[]) {
             std::print("Checksum: {}\n", cryptoCtx.CalculateChecksum(inputFile));
             break;
 
+        case COMMAND_TYPE::HELP:
+            break;
         default:
             throw std::runtime_error{"Unsupported command"};
         }

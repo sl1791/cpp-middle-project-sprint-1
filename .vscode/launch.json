@@ -34,7 +34,10 @@
             "name": "Launch Debug app",
             "program": "${workspaceFolder}/build/CryptoGuard",
             "args": [
-                "--help"
+                "--command=encrypt",
+                "--input=input.txt",
+                "--output=output.txt",
+                "--password=sinecura"
             ],
             "cwd": "${workspaceFolder}/build",
             "externalConsole": false,
