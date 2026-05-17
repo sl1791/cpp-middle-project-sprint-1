@@ -7,6 +7,7 @@
 #include <print>
 #include <stdexcept>
 #include <string>
+#include <fstream>
 
 struct AesCipherParams {
     static const size_t KEY_SIZE = 32;             // AES-256 key size
@@ -32,6 +33,24 @@ AesCipherParams CreateChiperParamsFromPassword(std::string_view password) {
 
     return params;
 }
+
+void OpenFiles(CryptoGuard::ProgramOptions& options,
+                std::fstream& inputFile,
+                std::fstream* outputFile = nullptr)
+{
+    inputFile.open(options.GetInputFile(), std::ios::binary | std::ios::in);
+    if(!inputFile.is_open())
+        throw std::runtime_error{
+            std::format("Failed to open file {}\n", options.GetInputFile())};
+
+    if(!outputFile)
+        return;
+    outputFile->open(options.GetOutputFile(), std::ios::binary | std::ios::out);
+    if(!outputFile->is_open())
+        throw std::runtime_error{
+            std::format("Failed to open file {}\n", options.GetOutputFile())};
+}
+
 
 int main(int argc, char *argv[]) {
     try {
@@ -81,21 +100,32 @@ int main(int argc, char *argv[]) {
         //
 
         CryptoGuard::ProgramOptions options;
+        options.Parse(argc, argv);
+
+        std::fstream inputFile;
+        std::fstream outputFile;
 
         CryptoGuard::CryptoGuardCtx cryptoCtx;
 
         using COMMAND_TYPE = CryptoGuard::ProgramOptions::COMMAND_TYPE;
         switch (options.GetCommand()) {
         case COMMAND_TYPE::ENCRYPT:
+            OpenFiles(options, inputFile, &outputFile);
+            cryptoCtx.EncryptFile(inputFile, 
+                outputFile, options.GetPassword());
             std::print("File encoded successfully\n");
             break;
 
         case COMMAND_TYPE::DECRYPT:
+            OpenFiles(options, inputFile, &outputFile);
+            cryptoCtx.DecryptFile(inputFile, 
+                outputFile, options.GetPassword());
             std::print("File decoded successfully\n");
             break;
 
         case COMMAND_TYPE::CHECKSUM:
-            std::print("Checksum: {}\n", "CHECKSUM_NOT_IMPLEMENTED");
+            OpenFiles(options, inputFile);
+            std::print("Checksum: {}\n", cryptoCtx.CalculateChecksum(inputFile));
             break;
 
         default:
