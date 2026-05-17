@@ -125,7 +125,43 @@ void CryptoGuardCtx::Impl::DecryptFile(std::iostream &inStream, std::iostream &o
 
 std::string CryptoGuardCtx::Impl::CalculateChecksum(std::iostream &inStream)
 {
-    return "NOT_IMPLEMENTED"; 
+    const char* errorText = "Failed to calculate checksum.";
+    
+    auto md_deleter = [](EVP_MD_CTX* ptr) { EVP_MD_CTX_free(ptr); };
+    std::unique_ptr<EVP_MD_CTX, decltype(md_deleter)> ctx(EVP_MD_CTX_new(), md_deleter);
+    if (!ctx)
+        throw std::runtime_error{errorText};
+    
+    if (EVP_DigestInit_ex(ctx.get(), EVP_sha256(), nullptr) != 1) 
+        throw std::runtime_error{errorText};
+
+    const size_t BUFFER_SIZE = 8192;  // 8KB buffer for efficient reading
+    std::vector<unsigned char> buffer(BUFFER_SIZE);
+    std::vector<unsigned char> hash(EVP_MAX_MD_SIZE);
+    unsigned int hash_len = 0;
+        
+    while (inStream.read(reinterpret_cast<char*>(buffer.data()), BUFFER_SIZE) || 
+           inStream.gcount() > 0) {
+        size_t bytes_read = inStream.gcount();
+        if (EVP_DigestUpdate(ctx.get(), buffer.data(), bytes_read) != 1) 
+            throw std::runtime_error{errorText};
+    }
+    
+    // Finalize hash calculation
+    if (EVP_DigestFinal_ex(ctx.get(), hash.data(), &hash_len) != 1)
+        throw std::runtime_error{errorText};
+    
+    // Convert hash to hexadecimal string
+    std::string result;
+    result.reserve(hash_len * 2);
+    for (unsigned int i = 0; i < hash_len; ++i) 
+    {
+        char hex[3];
+        snprintf(hex, sizeof(hex), "%02x", hash[i]);
+        result += hex;
+    }
+    
+    return result;
 }
 
 AesCipherParams 
