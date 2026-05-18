@@ -33,6 +33,17 @@ TEST(CryptoGuardCtx, Encrypt)
     EXPECT_EQ(output.str(), res); 
 }
 
+TEST(CryptoGuardCtx, Decrypt) 
+{ 
+    CryptoGuard::CryptoGuardCtx cryptoCtx;
+    std::stringstream input;
+    input << std::string(encryptedText, sizeof(encryptedText)-1);  
+    std::stringstream output;
+    cryptoCtx.DecryptFile(input, output, password);
+    std::string res(textForEncription, sizeof(textForEncription)-1);  
+    EXPECT_EQ(output.str(), res); 
+}
+
 TEST(CryptoGuardCtx, EncryptEmptyInput) 
 { 
     CryptoGuard::CryptoGuardCtx cryptoCtx;
@@ -41,6 +52,16 @@ TEST(CryptoGuardCtx, EncryptEmptyInput)
     cryptoCtx.EncryptFile(input, output, password);
     std::string res(encryptedEmptyText, sizeof(encryptedEmptyText)-1);  
     EXPECT_EQ(output.str(), res); 
+}
+
+TEST(CryptoGuardCtx, DecryptEmptyInput) 
+{ 
+    CryptoGuard::CryptoGuardCtx cryptoCtx;
+    std::stringstream input;
+    input << std::string (encryptedEmptyText, sizeof(encryptedEmptyText)-1);
+    std::stringstream output;
+    cryptoCtx.DecryptFile(input, output, password);
+    EXPECT_EQ(output.str(), ""); 
 }
 
 TEST(CryptoGuardCtx, EncryptEmptyPwd) 
@@ -54,13 +75,32 @@ TEST(CryptoGuardCtx, EncryptEmptyPwd)
     EXPECT_EQ(output.str(), res); 
 }
 
+TEST(CryptoGuardCtx, DecryptEmptyPwd) 
+{ 
+    CryptoGuard::CryptoGuardCtx cryptoCtx;
+    std::stringstream input;
+    input << std::string(encryptedTextNoPwd, sizeof(encryptedTextNoPwd)-1);
+    std::stringstream output;
+    cryptoCtx.DecryptFile(input, output, "");
+    EXPECT_EQ(output.str(), textForEncription); 
+}
+
 TEST(CryptoGuardCtx, EncryptAssert) 
 { 
     CryptoGuard::CryptoGuardCtx cryptoCtx;
     std::stringstream input;
-    input << "this is an example of text for encryption";
-    const char* pwd = "sinecura";
+    input << textForEncription;
     std::stringstream output;
     output.setstate(std::ios_base::failbit);
-    ASSERT_THROW(cryptoCtx.EncryptFile(input, output, pwd), std::runtime_error);
+    ASSERT_THROW(cryptoCtx.EncryptFile(input, output, password), std::runtime_error);
+}
+
+TEST(CryptoGuardCtx, DecryptAssert) 
+{ 
+    CryptoGuard::CryptoGuardCtx cryptoCtx;
+    std::stringstream input;
+    input << std::string(encryptedText, sizeof(encryptedText)-1);  
+    std::stringstream output;
+    output.setstate(std::ios_base::failbit);
+    ASSERT_THROW(cryptoCtx.DecryptFile(input, output, password), std::runtime_error);
 }
