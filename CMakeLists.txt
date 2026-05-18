@@ -21,7 +21,8 @@ file(GLOB HEADER_FILES "${CMAKE_SOURCE_DIR}/include/*.h")
 list(REMOVE_ITEM SRC_FILES "${CMAKE_SOURCE_DIR}/src/main.cpp")
 
 # Создаём статическую библиотеку
-add_library(${PROJECT_NAME}_imp STATIC ${SRC_FILES} ${HEADER_FILES})
+#add_library(${PROJECT_NAME}_imp STATIC ${SRC_FILES} ${HEADER_FILES})
+add_library(${PROJECT_NAME}_imp STATIC ${SRC_FILES})
 
 # Добавляем в проект используемые сторонние библиотеки
 target_include_directories(${PROJECT_NAME}_imp PUBLIC
@@ -40,7 +41,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_imp)
 #
 
 # Рекурсивно ищем все используемые в тестах .cpp файлы
-file(GLOB TEST_SRC_FILES "${CMAKE_SOURCE_DIR}/tests/*.cpp")
+file(GLOB TEST_SRC_FILES 
+    "${CMAKE_SOURCE_DIR}/tests/*.cpp" 
+    "${CMAKE_SOURCE_DIR}/src/cmd_options.cpp"
+    "${CMAKE_SOURCE_DIR}/src/crypto_guard_ctx.cpp")
 
 add_executable(unit_tests "${TEST_SRC_FILES}")
 target_include_directories(unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
